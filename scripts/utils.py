@@ -2,10 +2,18 @@
 Utility functions for logging, timing, and SMOTE support.
 """
 import os
+import sys
 import time
 import logging
 from logging.handlers import RotatingFileHandler
 from contextlib import contextmanager
+
+try:
+    import colorlog
+    from colorlog import ColoredFormatter
+    COLOR_AVAILABLE = True
+except ImportError:
+    COLOR_AVAILABLE = False
 
 from scripts.config import Config
 
@@ -36,11 +44,24 @@ def setup_logging(logger_name=None):
     # Don't propagate to parent loggers to avoid duplicate logs
     logger.propagate = False
     
-    # Create formatter
-    formatter = logging.Formatter(
+    # Create formatters
+    file_formatter = logging.Formatter(
         fmt=config.LOG_FORMAT,
         datefmt=config.LOG_DATE_FORMAT
     )
+    
+    # Set up colored formatter if available
+    if COLOR_AVAILABLE and sys.stderr.isatty():
+        console_formatter = ColoredFormatter(
+            '%(log_color)s%(levelname)-8s%(reset)s %(asctime)s - %(name)s - %(message)s',
+            datefmt=config.LOG_DATE_FORMAT,
+            reset=True,
+            log_colors=config.LOG_COLORS,
+            secondary_log_colors=config.SECONDARY_LOG_COLORS,
+            style='%'
+        )
+    else:
+        console_formatter = file_formatter
     
     try:
         # File handler (rotates when file reaches 5MB, keeps 3 backup files)
@@ -51,7 +72,7 @@ def setup_logging(logger_name=None):
             encoding='utf-8'
         )
         file_handler.setLevel(config.LOG_LEVEL)
-        file_handler.setFormatter(formatter)
+        file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
     except (IOError, OSError) as e:
         print(f"Warning: Could not set up file logging: {e}")
@@ -60,8 +81,24 @@ def setup_logging(logger_name=None):
     # Console handler (always add console handler)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(config.LOG_LEVEL)
-    console_handler.setFormatter(formatter)
+    console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
+    
+    # Add custom log levels for better visual distinction
+    if not hasattr(logging, 'SUCCESS'):
+        logging.SUCCESS = 25  # Between WARNING and INFO
+        logging.addLevelName(logging.SUCCESS, 'SUCCESS')
+        
+        def success(self, message, *args, **kws):
+            if self.isEnabledFor(logging.SUCCESS):
+                self._log(logging.SUCCESS, message, args, **kws)
+        
+        logging.Logger.success = success
+        
+        def success_root(message, *args, **kwargs):
+            logging.log(logging.SUCCESS, message, *args, **kwargs)
+            
+        logging.success = success_root
     
     # Log the logging configuration
     logger.debug("Logging initialized")

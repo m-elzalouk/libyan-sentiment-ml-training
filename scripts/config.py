@@ -17,9 +17,32 @@ class Config:
     
     # Logging configuration
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
     LOG_FILE_FORMAT = os.getenv("LOG_FILE_FORMAT", "training_%Y%m%d_%H%M%S.log")
+    
+    # Console logging format with colors
+    LOG_COLORS = {
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'red,bg_white',
+    }
+    
+    # File logging format (no colors)
+    LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    
+    # Colored console format
+    CONSOLE_FORMAT = "%(log_color)s%(levelname)-8s%(reset)s %(asctime)s - %(name)s - %(message)s"
+    
+    # Secondary log colors (for highlighting)
+    SECONDARY_LOG_COLORS = {
+        'message': {
+            'SUCCESS': 'green',
+            'IMPORTANT': 'yellow',
+            'ERROR': 'red',
+        }
+    }
     
     @property
     def LOG_FILE(self):

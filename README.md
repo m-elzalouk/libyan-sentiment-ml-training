@@ -87,11 +87,42 @@ libyan-dialect-sentiment/
   - Confusion matrices
   - ROC-AUC curves
   - Precision-Recall curves
+- **Enhanced Logging**:
+  - Color-coded console output for better readability
+  - Automatic color detection for different terminals
+  - Custom log levels (SUCCESS, IMPORTANT)
+  - Color-coded metrics based on performance
+  - Visual indicators for warnings and errors
 - **Production Ready**:
   - Docker containerization
   - Environment variable configuration
-  - Logging to file and console
+  - Logging to file (with rotation) and console
   - Model persistence
+
+## 🎨 Colorful Logging
+
+The application features enhanced logging with color-coded output for better readability:
+
+### Color Scheme
+- ✅ **SUCCESS**: Green - For successful operations and high scores (>0.9)
+- ℹ️ **INFO**: White/Default - General information and medium scores (0.7-0.9)
+- ⚠️ **WARNING**: Yellow - For potential issues and lower scores (0.5-0.7)
+- ❌ **ERROR**: Red - For errors and very low scores (<0.5)
+- 🔵 **DEBUG**: Cyan - Detailed debugging information
+
+### Features
+- Automatic detection of terminal color support
+- Fallback to plain text when colors aren't supported
+- Color-coded metrics based on their values
+- Visual indicators for overfitting detection
+- Custom log levels for better message categorization
+
+### Example Output
+```
+SUCCESS 2023-06-21 23:45:12 - models - Best F1_WEIGHTED: 0.923
+INFO    2023-06-21 23:45:12 - models - Train vs Test F1_WEIGHTED: 0.935 (train) vs 0.923 (test) [Δ=0.012]
+WARNING 2023-06-21 23:45:12 - models - Possible overfitting detected - large gap between train and test scores
+```
 
 ## 📊 Model Performance
 

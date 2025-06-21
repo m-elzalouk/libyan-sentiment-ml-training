@@ -5,3 +5,4 @@ seaborn
 joblib
 python-dotenv
 imblearn
+colorlog>=6.7.0
