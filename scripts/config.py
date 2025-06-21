@@ -17,9 +17,19 @@ class Config:
     
     # Logging configuration
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FILE = os.path.join(LOGS_DIR, "training.log")
     LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+    LOG_FILE_FORMAT = os.getenv("LOG_FILE_FORMAT", "training_%Y%m%d_%H%M%S.log")
+    
+    @property
+    def LOG_FILE(self):
+        """Generate log file path with timestamp."""
+        from datetime import datetime
+        os.makedirs(self.LOGS_DIR, exist_ok=True)
+        return os.path.join(
+            self.LOGS_DIR,
+            datetime.now().strftime(self.LOG_FILE_FORMAT)
+        )
     RESULTS_PATH = os.path.join(RESULTS_DIR, "scores.json")
     MODEL_PATH = os.path.join(MODELS_DIR, "best_model.pkl")
     CONFUSION_MATRIX_PATH = os.path.join(RESULTS_DIR, "confusion_matrix.png")

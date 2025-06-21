@@ -9,19 +9,32 @@ from contextlib import contextmanager
 
 from scripts.config import Config
 
-def setup_logging():
-    """Set up logging with both file and console handlers."""
+def setup_logging(logger_name=None):
+    """
+    Set up logging with both file and console handlers.
+    
+    Args:
+        logger_name: Optional name for the logger. If None, returns the root logger.
+        
+    Returns:
+        logging.Logger: Configured logger instance
+    """
     config = Config()
     
     # Create logs directory if it doesn't exist
     os.makedirs(config.LOGS_DIR, exist_ok=True)
     
-    # Create logger
-    logger = logging.getLogger()
+    # Get or create the logger
+    logger = logging.getLogger(logger_name) if logger_name else logging.getLogger()
     logger.setLevel(config.LOG_LEVEL)
     
-    # Clear any existing handlers
-    logger.handlers = []
+    # Clear any existing handlers to avoid duplicate logs
+    if logger.handlers:
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+    
+    # Don't propagate to parent loggers to avoid duplicate logs
+    logger.propagate = False
     
     # Create formatter
     formatter = logging.Formatter(
@@ -29,24 +42,36 @@ def setup_logging():
         datefmt=config.LOG_DATE_FORMAT
     )
     
-    # File handler (rotates when file reaches 5MB, keeps 3 backup files)
-    file_handler = RotatingFileHandler(
-        config.LOG_FILE,
-        maxBytes=5*1024*1024,  # 5MB
-        backupCount=3,
-        encoding='utf-8'
-    )
-    file_handler.setLevel(config.LOG_LEVEL)
-    file_handler.setFormatter(formatter)
+    try:
+        # File handler (rotates when file reaches 5MB, keeps 3 backup files)
+        file_handler = RotatingFileHandler(
+            config.LOG_FILE,
+            maxBytes=5*1024*1024,  # 5MB
+            backupCount=3,
+            encoding='utf-8'
+        )
+        file_handler.setLevel(config.LOG_LEVEL)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except (IOError, OSError) as e:
+        print(f"Warning: Could not set up file logging: {e}")
+        print("Falling back to console logging only.")
     
-    # Console handler
+    # Console handler (always add console handler)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(config.LOG_LEVEL)
     console_handler.setFormatter(formatter)
-    
-    # Add handlers to logger
-    logger.addHandler(file_handler)
     logger.addHandler(console_handler)
+    
+    # Log the logging configuration
+    logger.debug("Logging initialized")
+    logger.debug(f"Log level set to: {config.LOG_LEVEL}")
+    try:
+        logger.debug(f"Log file: {os.path.abspath(config.LOG_FILE)}")
+    except Exception:
+        logger.debug("Log file: Not available (console only)")
+    
+    return logger
     
     # Log the start of the application
     logger.info("=" * 50)
