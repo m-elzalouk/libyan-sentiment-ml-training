@@ -1,0 +1,58 @@
+2025-06-21 20:29:37 - root - INFO - ==================================================
+2025-06-21 20:29:37 - root - INFO - Starting training pipeline
+2025-06-21 20:29:37 - root - INFO - ==================================================
+2025-06-21 20:29:37 - root - INFO - Initializing training pipeline
+2025-06-21 20:29:37 - root - INFO - Configuration loaded. Data path: data/dataset_cleaned-positive-negative-v2.csv
+2025-06-21 20:29:37 - root - INFO - Output directories verified/created
+2025-06-21 20:29:37 - scripts.utils - INFO - Data loading and preparation started
+2025-06-21 20:29:37 - scripts.utils - INFO - Starting: Load dataset
+2025-06-21 20:29:37 - scripts.data_loader - INFO - Loading data from data/dataset_cleaned-positive-negative-v2.csv
+2025-06-21 20:29:37 - scripts.utils - INFO - Completed: Load dataset
+2025-06-21 20:29:37 - scripts.utils - INFO - Starting: Clean and preprocess data
+2025-06-21 20:29:37 - scripts.utils - INFO - Completed: Clean and preprocess data
+2025-06-21 20:29:37 - scripts.utils - INFO - Starting: Prepare features and labels
+2025-06-21 20:29:37 - scripts.data_loader - INFO - Class distribution: {1: 12465, 0: 8909}
+2025-06-21 20:29:37 - scripts.utils - INFO - Completed: Prepare features and labels
+2025-06-21 20:29:37 - scripts.utils - INFO - Starting: Split data into train/test sets
+2025-06-21 20:29:37 - scripts.data_loader - INFO - Split data into training (17099 samples) and test (4275 samples) sets
+2025-06-21 20:29:37 - scripts.data_loader - INFO - Train set class distribution: {0: np.int64(7127), 1: np.int64(9972)}
+2025-06-21 20:29:37 - scripts.data_loader - INFO - Test set class distribution: {0: np.int64(1782), 1: np.int64(2493)}
+2025-06-21 20:29:37 - scripts.utils - INFO - Completed: Split data into train/test sets
+2025-06-21 20:29:37 - root - INFO - Data loaded. Train samples: 17099, Test samples: 4275
+2025-06-21 20:29:37 - scripts.utils - INFO - Data loading and preparation completed in 0.27 seconds
+2025-06-21 20:29:37 - scripts.utils - INFO - Feature extraction started
+2025-06-21 20:29:37 - scripts.utils - INFO - Starting: Initialize TF-IDF Vectorizer
+2025-06-21 20:29:37 - scripts.features - INFO - Initializing TF-IDF Vectorizer with params: {'max_features': 20000, 'ngram_range': (1, 3), 'min_df': 3, 'max_df': 0.9, 'analyzer': 'word'}
+2025-06-21 20:29:37 - scripts.utils - INFO - Completed: Initialize TF-IDF Vectorizer
+2025-06-21 20:29:37 - scripts.utils - INFO - Starting: Fit and transform training data
+2025-06-21 20:29:38 - scripts.features - INFO - TF-IDF Vectorizer fitted. Vocabulary size: 3614. Training matrix shape: (17099, 3614)
+2025-06-21 20:29:38 - scripts.utils - INFO - Completed: Fit and transform training data
+2025-06-21 20:29:38 - scripts.utils - INFO - Starting: Transform test data
+2025-06-21 20:29:38 - scripts.features - INFO - Test data transformed. Test matrix shape: (4275, 3614)
+2025-06-21 20:29:38 - scripts.features - INFO - Test matrix sparsity: 99.93%
+2025-06-21 20:29:38 - scripts.utils - INFO - Completed: Transform test data
+2025-06-21 20:29:38 - scripts.features - INFO - Top 10 most important features (by mean TF-IDF):
+2025-06-21 20:29:38 - scripts.features - INFO -   - قول: 0.0115
+2025-06-21 20:29:38 - scripts.features - INFO -   - قلب: 0.0102
+2025-06-21 20:29:38 - scripts.features - INFO -   - الله: 0.0093
+2025-06-21 20:29:38 - scripts.features - INFO -   - ناس: 0.0083
+2025-06-21 20:29:38 - scripts.features - INFO -   - كل: 0.0076
+2025-06-21 20:29:38 - scripts.features - INFO -   - عين: 0.0074
+2025-06-21 20:29:38 - scripts.features - INFO -   - حب: 0.0071
+2025-06-21 20:29:38 - scripts.features - INFO -   - يوم: 0.0070
+2025-06-21 20:29:38 - scripts.features - INFO -   - خير: 0.0069
+2025-06-21 20:29:38 - scripts.features - INFO -   - غلا: 0.0066
+2025-06-21 20:29:38 - root - INFO - Feature extraction complete. Vectorizer vocabulary size: 3614
+2025-06-21 20:29:38 - scripts.utils - INFO - Feature extraction completed in 0.94 seconds
+2025-06-21 20:29:38 - scripts.utils - INFO - Model training started
+2025-06-21 20:29:38 - scripts.utils - INFO - Starting: Initialize models
+2025-06-21 20:29:38 - scripts.models - INFO - Initialized 4 models for training
+2025-06-21 20:29:38 - scripts.utils - INFO - Completed: Initialize models
+2025-06-21 20:29:38 - scripts.utils - INFO - Starting: Train model
+2025-06-21 20:29:38 - scripts.models - INFO - Training SVM (Linear) with parameters: {'C': [0.1, 1, 10], 'kernel': ['linear'], 'class_weight': ['balanced']}
+2025-06-21 20:33:21 - scripts.models - INFO - SVM (Linear) - Best f1_weighted: 0.6776 with params: {'C': 1, 'class_weight': 'balanced', 'kernel': 'linear'}
+2025-06-21 20:33:21 - scripts.utils - INFO - Completed: Train model
+2025-06-21 20:33:21 - scripts.utils - INFO - Starting: Train model
+2025-06-21 20:33:21 - scripts.models - INFO - Training SVM (RBF) with parameters: {'C': [0.1, 1, 10], 'kernel': ['rbf'], 'class_weight': ['balanced']}
+2025-06-21 20:36:24 - scripts.utils - INFO - Model training completed in 405.55 seconds
+2025-06-21 20:36:24 - scripts.utils - INFO - Total pipeline execution completed in 406.78 seconds

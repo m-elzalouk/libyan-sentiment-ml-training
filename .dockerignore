@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+.env
+*.ipynb
+results.csv
+best_model.joblib
+confusion_matrix.png
+roc_curve.png
