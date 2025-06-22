@@ -1,190 +1,236 @@
 # Libyan Dialect Sentiment Analysis (Misurata Sub-dialect)
 
-A CLI-based, Dockerized machine learning pipeline for sentiment analysis on Libyan Arabic poetry/texts.
+A robust, production-ready machine learning pipeline for sentiment analysis on Libyan Arabic text, specifically optimized for the Misurata sub-dialect. This project implements multiple machine learning models with hyperparameter tuning and comprehensive evaluation metrics.
 
-## 🚀 Quick Start with GitHub
+## 📋 Table of Contents
+- [Features](#-features)
+- [Prerequisites](#-prerequisites)
+- [Getting Started](#-getting-started)
+  - [Local Setup](#local-setup)
+  - [Docker Setup](#docker-setup)
+- [Project Structure](#-project-structure)
+- [Configuration](#-configuration)
+- [Usage](#-usage)
+- [Model Training](#-model-training)
+- [Results](#-results)
+- [Development](#-development)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-### Prerequisites
+## ✨ Features
+
+- **Multiple ML Models**:
+  - Support Vector Machines (SVM) with Linear and RBF kernels
+  - Naive Bayes
+  - Logistic Regression
+  
+- **Advanced Features**:
+  - TF-IDF with n-grams (1, 2, 3)
+  - Custom Arabic text tokenization
+  - Hyperparameter tuning with GridSearchCV
+  
+- **Comprehensive Evaluation**:
+  - Detailed classification reports (CSV & HTML)
+  - Confusion matrix visualization
+  - ROC-AUC and Precision-Recall curves
+  - F1-score per class analysis
+  
+- **Production Ready**:
+  - Containerized with Docker
+  - Environment-based configuration
+  - Structured logging with color-coded output
+  - Model persistence
+
+## 🚀 Prerequisites
+
+- Docker and Docker Compose (recommended)
+- Python 3.11+ (for local development)
 - Git
-- Docker and Docker Compose
-- Python 3.11+
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/yourusername/libyan-dialect-sentiment.git
-cd libyan-dialect-sentiment
-```
+## 🛠 Getting Started
 
-### 2. Set Up Environment
-```bash
-# Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+### Local Setup
 
-# Install dependencies
-pip install -r requirements.txt
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/m-elzalouk/libyan-dialect-sentiment.git
+   cd libyan-dialect-sentiment
+   ```
 
-# Copy and configure environment variables
-cp .env.example .env
-# Edit .env with your configuration
-```
+2. **Set up Python environment**:
+   ```bash
+   python -m venv .venv
+   # On Windows:
+   .venv\Scripts\activate
+   # On macOS/Linux:
+   source .venv/bin/activate
+   
+   # Install dependencies
+   pip install -r requirements.txt
+   ```
 
-### 3. Run with Docker Compose (Recommended)
+3. **Configure environment variables**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
 
-```bash
-# Start the training service in detached mode
-docker-compose up -d
+### Docker Setup (Recommended)
 
-# View logs
-docker-compose logs -f
+1. **Build and run the container**:
+   ```bash
+   # Start the training service in detached mode (work in background)
+   docker-compose up -d
+   
+   # View logs
+   docker-compose logs -f
+   ```
 
-# Stop the service
-docker-compose down
+2. **Stop the service**:
+   ```bash
+   docker-compose down
+   ```
 
-# View running containers
-docker-compose ps
+3. **Monitor resources**:
+   ```bash
+   # View running containers
+   docker-compose ps
+   
+   # View resource usage
+   docker stats
+   ```
 
-# View resource usage
-docker stats
-```
-
-### 4. (Alternative) Run with Docker Directly
-
-```bash
-# Build the Docker image
-docker build -t libyan-sentiment .
-
-# Run the pipeline
-docker run --rm \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/results:/app/results \
-  -v $(pwd)/models:/app/models \
-  libyan-sentiment
-```
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 libyan-dialect-sentiment/
 │
-├── data/                   # Dataset directory (not versioned)
+├── data/                   # Dataset directory (mounted volume)
 │   └── dataset_cleaned-positive-negative-v2.csv
 │
 ├── scripts/               # Main application code
-│   ├── train.py           # Training pipeline
+│   ├── train.py           # Training pipeline entry point
 │   ├── config.py          # Configuration settings
 │   ├── data_loader.py     # Data loading and preprocessing
 │   ├── features.py        # Feature extraction
 │   ├── models.py          # Model definitions and training
-│   ├── evaluate.py        # Model evaluation
-│   └── utils.py           # Utility functions
+│   ├── evaluate.py        # Model evaluation and visualization
+│   └── utils.py           # Utility functions and logging
 │
-├── models/               # Saved models (not versioned)
-├── results/              # Output results (not versioned)
-├── logs/                 # Log files (not versioned)
+├── models/               # Saved models (mounted volume)
+├── results/              # Output results (mounted volume)
+├── logs/                 # Log files (mounted volume)
 │
 ├── .env.example         # Example environment variables
 ├── requirements.txt      # Python dependencies
 ├── Dockerfile            # Docker configuration
+├── docker-compose.yml    # Docker Compose configuration
 ├── .dockerignore         # Docker ignore file
 └── README.md            # This file
 ```
 
-## ✨ Features
+## ⚙️ Configuration
 
-- **Modular Architecture**: Clean separation of concerns with dedicated modules
-- **Advanced Text Processing**:
-  - TF-IDF with n-grams (1,2,3)
-  - Custom token patterns for Arabic text
-  - Stop words removal
-- **Multiple Models**:
-  - Support Vector Machines (SVM)
-  - Naive Bayes
-  - Logistic Regression
-  - Hyperparameter tuning with GridSearchCV
-- **Comprehensive Evaluation**:
-  - Detailed classification reports
-  - Confusion matrices
-  - ROC-AUC curves
-  - Precision-Recall curves
-- **Enhanced Logging**:
-  - Color-coded console output for better readability
-  - Automatic color detection for different terminals
-  - Custom log levels (SUCCESS, IMPORTANT)
-  - Color-coded metrics based on performance
-  - Visual indicators for warnings and errors
-- **Production Ready**:
-  - Docker containerization
-  - Environment variable configuration
-  - Logging to file (with rotation) and console
-  - Model persistence
+Configure the application using the `.env` file. Copy from the example:
 
-## 🎨 Colorful Logging
+```bash
+cp .env.example .env
+```
 
-The application features enhanced logging with color-coded output for better readability:
+Key configuration options:
+- `DATA_PATH`: Path to the dataset file
+- `RESULTS_DIR`: Directory to save evaluation results
+- `MODELS_DIR`: Directory to save trained models
+- `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR)
+- `TEST_SIZE`: Fraction of data to use for testing (default: 0.2)
+- `RANDOM_STATE`: Random seed for reproducibility
 
-### Color Scheme
-- ✅ **SUCCESS**: Green - For successful operations and high scores (>0.9)
-- ℹ️ **INFO**: White/Default - General information and medium scores (0.7-0.9)
-- ⚠️ **WARNING**: Yellow - For potential issues and lower scores (0.5-0.7)
-- ❌ **ERROR**: Red - For errors and very low scores (<0.5)
-- 🔵 **DEBUG**: Cyan - Detailed debugging information
+## 🚦 Usage
 
-### Features
-- Automatic detection of terminal color support
-- Fallback to plain text when colors aren't supported
-- Color-coded metrics based on their values
-- Visual indicators for overfitting detection
-- Custom log levels for better message categorization
+### Running the Pipeline
+
+1. **Using Docker Compose (Recommended)**:
+   ```bash
+   # Start the training pipeline
+   docker-compose up -d
+   
+   # Follow the logs
+   docker-compose logs -f
+   ```
+
+2. **Using Python directly**:
+   ```bash
+   python -m scripts.train
+   ```
+
+### Viewing Results
+
+After training completes, check the following directories:
+- `results/`: Contains evaluation metrics and visualizations
+- `models/`: Contains the trained model files
+- `logs/`: Contains log files with timestamps
+
+## 🧠 Model Training
+
+The pipeline trains multiple models with hyperparameter tuning:
+
+1. **Data Loading**: Loads and preprocesses the dataset
+2. **Feature Extraction**: Converts text to TF-IDF features
+3. **Model Training**:
+   - SVM with Linear Kernel
+   - SVM with RBF Kernel
+   - Naive Bayes
+   - Logistic Regression
+4. **Hyperparameter Tuning**: Uses GridSearchCV for optimal parameters
+5. **Evaluation**: Generates comprehensive metrics and visualizations
+
+## 📊 Results
+
+### Output Files
+
+- `results/classification_report.html`: Interactive HTML report
+- `results/confusion_matrix.png`: Confusion matrix visualization
+- `results/roc_curve.png`: ROC curve plot
+- `results/scores.json`: Detailed metrics in JSON format
+- `results/f1_scores.png`: F1-score comparison across classes
 
 ### Example Output
-```
-SUCCESS 2023-06-21 23:45:12 - models - Best F1_WEIGHTED: 0.923
-INFO    2023-06-21 23:45:12 - models - Train vs Test F1_WEIGHTED: 0.935 (train) vs 0.923 (test) [Δ=0.012]
-WARNING 2023-06-21 23:45:12 - models - Possible overfitting detected - large gap between train and test scores
-```
 
-## 📊 Model Performance
-
-### Best Model Metrics
-- **Accuracy**: 92.5%
-- **F1-Score**: 0.923
-- **Precision**: 0.924
-- **Recall**: 0.925
-- **ROC-AUC**: 0.98
-
-### Confusion Matrix
 ```
-              Predicted
-              Negative  Positive
-Actual
-Negative        145       12
-Positive         10      156
+SUCCESS 2025-06-22 16:32:13 - models - Best model: SVM (Linear)
+SUCCESS 2025-06-22 16:32:13 - models - Best F1_WEIGHTED: 0.923
+INFO    2025-06-22 16:32:13 - evaluate - Detailed classification reports saved to results/classification_report.csv and results/classification_report.html
 ```
 
 ## 🛠 Development
 
-### Running Tests
-```bash
-# Run unit tests
-pytest tests/
+### Setting Up for Development
 
+1. **Install development dependencies**:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
 
-# Run with coverage
-pytest --cov=scripts tests/
-```
+2. **Run tests**:
+   ```bash
+   # Run unit tests
+   pytest tests/
+   
+   # Run with coverage
+   pytest --cov=scripts tests/
+   ```
 
-### Code Quality
-```bash
-# Run linter
-flake8 scripts/
-
-
-# Run type checking
-mypy scripts/
-```
+3. **Code quality checks**:
+   ```bash
+   # Linting
+   flake8 scripts/
+   
+   # Type checking
+   mypy scripts/
+   ```
 
 ### Pre-commit Hooks
+
 ```bash
 # Install pre-commit
 pip install pre-commit
@@ -196,8 +242,15 @@ pre-commit run --all-files
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+1. **Fork** the repository
+2. Create a **feature branch** (`git checkout -b feature/AmazingFeature`)
+3. **Commit** your changes (`git commit -m 'Add some AmazingFeature'`)
+4. **Push** to the branch (`git push origin feature/AmazingFeature`)
+5. Open a **Pull Request**
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
