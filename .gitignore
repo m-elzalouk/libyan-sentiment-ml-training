@@ -32,14 +32,14 @@ ENV/
 *.swo
 
 # Data files
-data/
+data/*
 
 # Model files
 models/*
 !models/.gitkeep
 
 # Logs
-logs/
+logs/*
 
 # Results
 results/*
