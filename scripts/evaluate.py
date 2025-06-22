@@ -11,9 +11,23 @@ import json
 import logging
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Set the backend to 'Agg' to avoid GUI-related issues
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scripts.utils import log_step
+from matplotlib.ticker import MaxNLocator  # For better y-axis ticks
+
+# Set the style for better-looking plots
+sns.set_style("whitegrid")
+plt.rcParams['figure.facecolor'] = 'white'
+plt.rcParams['savefig.dpi'] = 300
+plt.rcParams['savefig.bbox'] = 'tight'
+plt.rcParams['font.size'] = 12
+plt.rcParams['axes.labelsize'] = 12
+plt.rcParams['axes.titlesize'] = 14
+plt.rcParams['xtick.labelsize'] = 10
+plt.rcParams['ytick.labelsize'] = 10
 
 def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, best_params):
     """
@@ -102,6 +116,213 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
         logger.info(f"Confusion matrix saved to {output_path}")
         return cm
     
+    @log_step("Generate classifier comparison plots")
+    def _plot_classifier_comparison(metrics, output_prefix):
+        """Generate comparison plots for different classifiers and n-grams."""
+        # This is a placeholder for actual multi-classifier comparison
+        # In a real scenario, you would compare multiple models
+        model_name = metrics.get('model_name', 'Current Model')
+        accuracy = metrics['accuracy']
+        
+        # Create a simple comparison plot (can be enhanced with actual multiple model results)
+        plt.figure(figsize=(10, 6))
+        sns.barplot(
+            x=['Current Model'],
+            y=[accuracy],
+            hue=['Accuracy'],
+            palette='viridis'
+        )
+        plt.title(f'Model Performance: {model_name}')
+        plt.ylim(0, 1.1)
+        plt.ylabel('Score')
+        plt.xticks(rotation=45)
+        comparison_path = f"{output_prefix}_comparison.png"
+        plt.tight_layout()
+        plt.savefig(comparison_path)
+        plt.close()
+        logger.info(f"Classifier comparison plot saved to {comparison_path}")
+        
+        return comparison_path
+
+    @log_step("Generate F1-score per class")
+    def _plot_f1_per_class(classification_report_dict, output_prefix):
+        """Generate a bar plot of F1-scores for each class."""
+        # Extract class-wise metrics (excluding 'accuracy', 'macro avg', 'weighted avg')
+        class_metrics = {k: v for k, v in classification_report_dict.items() 
+                         if isinstance(v, dict) and 'f1-score' in v}
+        
+        if not class_metrics:
+            logger.warning("No class-wise metrics found in classification report")
+            return None
+            
+        # Create DataFrame for easier plotting
+        df = pd.DataFrame(class_metrics).transpose()
+        
+        # Plot
+        plt.figure(figsize=(10, 6))
+        ax = sns.barplot(
+            x=list(df.index),
+            y=list(df['f1-score']),
+            hue=list(df.index),  # Add hue to avoid deprecation warning
+            palette='viridis',
+            legend=False  # Don't show legend since we're using hue just for colors
+        )
+        ax.edgecolor='black'
+        
+        # Add value labels on top of bars
+        for p in ax.patches:
+            ax.annotate(
+                f"{p.get_height():.2f}",
+                (p.get_x() + p.get_width() / 2., p.get_height()),
+                ha='center', va='center',
+                xytext=(0, 5),
+                textcoords='offset points'
+            )
+        
+        plt.title('F1-Score per Class', pad=20)
+        plt.xlabel('Class')
+        plt.ylabel('F1-Score')
+        plt.ylim(0, 1.1)
+        plt.xticks(rotation=45, ha='right')
+        
+        f1_path = f"{output_prefix}_f1_per_class.png"
+        plt.tight_layout()
+        plt.savefig(f1_path)
+        plt.close()
+        logger.info(f"F1-score per class plot saved to {f1_path}")
+        return f1_path
+
+    @log_step("Generate detailed classification report")
+    def _save_detailed_report(classification_report_dict, output_prefix):
+        """Save detailed classification report as CSV and HTML.
+        
+        Args:
+            classification_report_dict: Dictionary containing classification metrics
+            output_prefix: Prefix for output file paths
+            
+        Returns:
+            tuple: Paths to the saved CSV and HTML files
+        """
+        # Convert to DataFrame for CSV output
+        report_df = pd.DataFrame(classification_report_dict).transpose()
+        
+        # Save as CSV
+        csv_path = f"{output_prefix}_classification_report.csv"
+        report_df.to_csv(csv_path)
+        
+        # Save as HTML with better formatting (simplified to avoid jinja2 dependency)
+        html_path = f"{output_prefix}_classification_report.html"
+        
+        # Create a simple HTML table without pandas styling
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Classification Report</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h2 { color: #333; }
+                table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                th { background-color: #f2f2f2; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
+                .metric { font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <h2>Detailed Classification Report</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Class</th>
+                        <th>Precision</th>
+                        <th>Recall</th>
+                        <th>F1-Score</th>
+                        <th>Support</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        try:
+            # Check if the classification report is in the expected format
+            if not isinstance(classification_report_dict, dict):
+                logger.warning(f"Unexpected classification report format: {type(classification_report_dict)}")
+                raise ValueError("Classification report must be a dictionary")
+            
+            # Add rows for each class
+            for class_name, metrics in classification_report_dict.items():
+                if class_name in ['accuracy', 'macro avg', 'weighted avg']:
+                    continue
+                
+                if not isinstance(metrics, dict):
+                    logger.warning(f"Unexpected metrics format for class {class_name}: {metrics}")
+                    continue
+                    
+                html_content += f"""
+                        <tr>
+                            <td class="metric">{class_name}</td>
+                            <td>{metrics.get('precision', 0):.2f}</td>
+                            <td>{metrics.get('recall', 0):.2f}</td>
+                            <td>{metrics.get('f1-score', 0):.2f}</td>
+                            <td>{metrics.get('support', 0):.0f}</td>
+                        </tr>
+                """
+            
+            # Add summary rows
+            for class_name in ['accuracy', 'macro avg', 'weighted avg']:
+                if class_name in classification_report_dict:
+                    metrics = classification_report_dict[class_name]
+                    if class_name == 'accuracy':
+                        html_content += f"""
+                            <tr>
+                                <td class="metric">Accuracy</td>
+                                <td colspan="3"></td>
+                                <td>{metrics:.2f}</td>
+                            </tr>
+                        """
+                    elif isinstance(metrics, dict):
+                        html_content += f"""
+                            <tr>
+                                <td class="metric">{class_name}</td>
+                                <td>{metrics.get('precision', 0):.2f}</td>
+                                <td>{metrics.get('recall', 0):.2f}</td>
+                                <td>{metrics.get('f1-score', 0):.2f}</td>
+                                <td>{metrics.get('support', 0):.0f}</td>
+                            </tr>
+                        """
+        except Exception as e:
+            logger.error(f"Error generating HTML report: {str(e)}", exc_info=True)
+            # Fallback to simple table with just the DataFrame
+            html_content += f"""
+                <tr>
+                    <td colspan="5">
+                        <p>Error generating detailed report. See CSV for data.</p>
+                        <pre>{report_df.to_html()}</pre>
+                    </td>
+                </tr>
+            """
+        
+        # Close HTML
+        html_content += """
+                </tbody>
+            </table>
+        </body>
+        </html>
+        """
+        
+        # Save HTML file
+        try:
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            logger.info(f"Detailed classification reports saved to {csv_path} and {html_path}")
+        except Exception as e:
+            logger.error(f"Error saving HTML report: {str(e)}", exc_info=True)
+            # If HTML save fails, just return the CSV path
+            return csv_path, None
+            
+        return csv_path, html_path
+
     @log_step("Generate ROC and PR curves")
     def _plot_roc_pr_curves(y_true, y_proba, output_prefix):
         if y_proba is None:
@@ -152,19 +373,23 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
         os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
         
         # Convert numpy types to native Python types for JSON serialization
+        # Compatible with both NumPy 1.x and 2.x
         def convert_numpy_types(obj):
-            if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
-                            np.int16, np.int32, np.int64, np.uint8,
-                            np.uint16, np.uint32, np.uint64)):
-                return int(obj)
-            elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
-                return float(obj)
-            elif isinstance(obj, (np.ndarray,)):
+            # Handle numpy numeric types
+            if hasattr(np, 'number') and isinstance(obj, np.number):
+                return float(obj) if isinstance(obj, np.floating) else int(obj)
+                
+            # Handle numpy arrays
+            if hasattr(np, 'ndarray') and isinstance(obj, np.ndarray):
                 return obj.tolist()
-            elif isinstance(obj, dict):
+                
+            # Handle dictionaries and lists recursively
+            if isinstance(obj, dict):
                 return {k: convert_numpy_types(v) for k, v in obj.items()}
             elif isinstance(obj, (list, tuple)):
                 return [convert_numpy_types(x) for x in obj]
+                
+            # Return the object as is if no conversion is needed
             return obj
         
         # Save JSON results
@@ -178,12 +403,15 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
         for key, value in metrics.items():
             if key != 'classification_report':
                 logger.info(f"{key.replace('_', ' ').title()}: {value}")
-        logger.info("\n" + "Classification Report:")
-        logger.info(classification_report(
-            y_test, y_pred, 
-            target_names=['Negative', 'Positive'],
-            digits=4
-        ))
+        
+        # Format and log classification report
+        report_df = pd.DataFrame(metrics['classification_report']).transpose()
+        logger.info("\n" + "="*50)
+        logger.info("DETAILED CLASSIFICATION REPORT")
+        logger.info("="*50)
+        logger.info("\n" + report_df.to_string())
+        
+        return metrics
     
     try:
         # Ensure output directories exist
@@ -194,26 +422,58 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
         y_pred, y_proba = _generate_predictions()
         metrics = _calculate_metrics(y_test, y_pred, y_proba)
         
-        # Generate visualizations
-        _plot_confusion_matrix(y_test, y_pred, config.CONFUSION_MATRIX_PATH)
-        roc_auc, avg_precision = _plot_roc_pr_curves(
-            y_test, 
-            y_proba, 
-            os.path.splitext(config.ROC_CURVE_PATH)[0]
+        # Add model name to metrics for visualization
+        metrics['model_name'] = model.__class__.__name__
+        
+        # Generate base output prefix for all visualizations
+        output_prefix = os.path.join(
+            os.path.dirname(config.RESULTS_PATH),
+            os.path.splitext(os.path.basename(config.RESULTS_PATH))[0]
         )
         
-        # Update metrics with visualization paths
+        # Generate visualizations
+        _plot_confusion_matrix(y_test, y_pred, config.CONFUSION_MATRIX_PATH)
+        _plot_roc_pr_curves(y_test, y_proba, output_prefix)
+        
+        # Generate additional visualizations
+        _plot_classifier_comparison(metrics, output_prefix)
+        _plot_f1_per_class(metrics['classification_report'], output_prefix)
+        _save_detailed_report(metrics['classification_report'], output_prefix)
+        
+        # Save results (including paths to all generated files)
         metrics['visualizations'] = {
             'confusion_matrix': config.CONFUSION_MATRIX_PATH,
-            'roc_curve': f"{os.path.splitext(config.ROC_CURVE_PATH)[0]}_roc.png",
-            'pr_curve': f"{os.path.splitext(config.ROC_CURVE_PATH)[0]}_pr.png"
+            'roc_curve': f"{output_prefix}_roc.png",
+            'pr_curve': f"{output_prefix}_pr.png",
+            'classifier_comparison': f"{output_prefix}_comparison.png",
+            'f1_per_class': f"{output_prefix}_f1_per_class.png",
+            'classification_report_csv': f"{output_prefix}_classification_report.csv",
+            'classification_report_html': f"{output_prefix}_classification_report.html"
         }
         
-        # Save all results
+        # Save the metrics
         _save_results(metrics, config.RESULTS_PATH)
+        
+        # Log completion with all output paths
+        logger.info("\n" + "="*50)
+        logger.info("EVALUATION COMPLETE")
+        logger.info("="*50)
+        logger.info(f"All results and visualizations have been saved to: {os.path.dirname(config.RESULTS_PATH)}")
+        logger.info(f"- Confusion Matrix: {config.CONFUSION_MATRIX_PATH}")
+        logger.info(f"- ROC Curve: {output_prefix}_roc.png")
+        logger.info(f"- PR Curve: {output_prefix}_pr.png")
+        logger.info(f"- Classifier Comparison: {output_prefix}_comparison.png")
+        logger.info(f"- F1 per Class: {output_prefix}_f1_per_class.png")
+        logger.info(f"- Detailed Reports: {output_prefix}_classification_report.{{csv,html}}")
+        logger.info("="*50)
         
         return metrics
         
     except Exception as e:
         logger.error(f"Error during evaluation: {str(e)}", exc_info=True)
         raise
+    
+@log_step("Save evaluation results")
+def _save_results(metrics, output_path):
+    logger.info(f"Saving evaluation results to {output_path}")
+    os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)

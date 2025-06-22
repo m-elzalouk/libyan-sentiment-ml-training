@@ -6,7 +6,7 @@ A CLI-based, Dockerized machine learning pipeline for sentiment analysis on Liby
 
 ### Prerequisites
 - Git
-- Docker
+- Docker and Docker Compose
 - Python 3.11+
 
 ### 1. Clone the Repository
@@ -29,7 +29,27 @@ cp .env.example .env
 # Edit .env with your configuration
 ```
 
-### 3. Run with Docker (Recommended)
+### 3. Run with Docker Compose (Recommended)
+
+```bash
+# Start the training service in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the service
+docker-compose down
+
+# View running containers
+docker-compose ps
+
+# View resource usage
+docker stats
+```
+
+### 4. (Alternative) Run with Docker Directly
+
 ```bash
 # Build the Docker image
 docker build -t libyan-sentiment .

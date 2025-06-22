@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  training:
+    build: .
+    container_name: libyan-sentiment-training-ml
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./results:/app/results
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    # for restart unless stopped 
+    # restart: unless-stopped
+    # Using all available system resources
+    # Remove or comment out the deploy.resources section to use all available CPU and memory
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 4G
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python -m scripts.train' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: >
+      sh -c "python -m scripts.train"
+  # test:
+  #   build: .
+  #   container_name: libyan-sentiment-test-ml
+  #   volumes:
+  #     - ./test_results:/app/test_results
+  #     - ./data:/app/data
+  #   env_file:
+  #     - .env
+  #   command: python -m scripts.test_pipeline
+
+  # Uncomment to add a Jupyter notebook service for exploration
+  # notebook:
+  #   build: .
+  #   container_name: libyan-sentiment-notebook
+  #   ports:
+  #     - "8888:8888"
+  #   volumes:
+  #     - .:/app
+  #   env_file:
+  #     - .env
+  #   command: >
+  #     jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password=''

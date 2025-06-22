@@ -2,6 +2,7 @@
 Model definitions and grid search for sentiment analysis.
 """
 import logging
+import os
 import joblib
 import numpy as np
 from sklearn.svm import SVC
@@ -219,6 +220,11 @@ def train_and_select_model(X_train_vec, y_train, config):
             f"Parameters: {best_params}"
         )
         
+        # Ensure the models directory exists
+        model_dir = os.path.dirname(config.MODEL_PATH)
+        if model_dir:  # Only try to create if there's a directory path
+            os.makedirs(model_dir, exist_ok=True)
+            
         # Save the best model
         joblib.dump(best_model, config.MODEL_PATH)
         logger.info(f"Best model saved to {config.MODEL_PATH}")
