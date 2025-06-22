@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from scripts.utils import log_step
 
-def extract_features(X_train, X_test, config):
+def extract_features(X_train, X_test, config, ngram_range=None):
     """
     Extract features from text data using TF-IDF vectorization.
     
@@ -14,6 +14,7 @@ def extract_features(X_train, X_test, config):
         X_train: Training text data
         X_test: Test text data
         config: Configuration object with vectorizer parameters
+        ngram_range: Optional tuple (min_n, max_n) to override the n-gram range
         
     Returns:
         tuple: (X_train_vec, X_test_vec, vectorizer) - Vectorized features and the vectorizer
@@ -22,8 +23,15 @@ def extract_features(X_train, X_test, config):
     
     @log_step("Initialize TF-IDF Vectorizer")
     def _initialize_vectorizer():
-        logger.info(f"Initializing TF-IDF Vectorizer with params: {config.VECTORIZER_PARAMS}")
-        return TfidfVectorizer(**config.VECTORIZER_PARAMS)
+        # Create a copy of vectorizer params to avoid modifying the original
+        vectorizer_params = config.VECTORIZER_PARAMS.copy()
+        
+        # Override ngram_range if provided
+        if ngram_range is not None:
+            vectorizer_params['ngram_range'] = ngram_range
+            
+        logger.info(f"Initializing TF-IDF Vectorizer with params: {vectorizer_params}")
+        return TfidfVectorizer(**vectorizer_params)
     
     @log_step("Fit and transform training data")
     def _fit_transform_train(vectorizer, X_train):

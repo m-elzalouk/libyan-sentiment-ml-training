@@ -29,7 +29,7 @@ plt.rcParams['axes.titlesize'] = 14
 plt.rcParams['xtick.labelsize'] = 10
 plt.rcParams['ytick.labelsize'] = 10
 
-def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, best_params):
+def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, best_params, results_dir=None):
     """
     Evaluate the model and save detailed results and visualizations.
     
@@ -40,7 +40,12 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
         vectorizer: Fitted vectorizer
         config: Configuration object
         best_params: Best parameters from grid search
+        results_dir: Optional directory to save results. If None, uses config.RESULTS_DIR
     """
+    # Use provided results_dir or fall back to config.RESULTS_DIR
+    if results_dir is None:
+        results_dir = config.RESULTS_DIR
+    os.makedirs(results_dir, exist_ok=True)
     logger = logging.getLogger(__name__)
     
     @log_step("Generate predictions")
@@ -366,6 +371,8 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
         
         logger.info(f"ROC and PR curves saved to {roc_path} and {pr_path}")
         return roc_auc, avg_precision
+
+    from datetime import datetime
     
     @log_step("Save evaluation results")
     def _save_results(metrics, output_path):
@@ -414,25 +421,29 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
         return metrics
     
     try:
-        # Ensure output directories exist
-        os.makedirs(os.path.dirname(config.RESULTS_PATH) or '.', exist_ok=True)
-        os.makedirs(os.path.dirname(config.CONFUSION_MATRIX_PATH) or '.', exist_ok=True)
+        # Generate base filenames for all outputs
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_filename = f"{model.__class__.__name__.lower()}_{timestamp}"
+        
+        # Set up paths for all outputs
+        results_path = os.path.join(results_dir, f"{base_filename}_results.json")
+        confusion_matrix_path = os.path.join(results_dir, f"{base_filename}_confusion_matrix.png")
+        output_prefix = os.path.join(results_dir, base_filename)
         
         # Generate predictions and metrics
         y_pred, y_proba = _generate_predictions()
         metrics = _calculate_metrics(y_test, y_pred, y_proba)
         
-        # Add model name to metrics for visualization
-        metrics['model_name'] = model.__class__.__name__
-        
-        # Generate base output prefix for all visualizations
-        output_prefix = os.path.join(
-            os.path.dirname(config.RESULTS_PATH),
-            os.path.splitext(os.path.basename(config.RESULTS_PATH))[0]
-        )
+        # Add model name and parameters to metrics
+        metrics.update({
+            'model_name': model.__class__.__name__,
+            'model_params': best_params,
+            'timestamp': datetime.now().isoformat(),
+            'ngram_range': getattr(vectorizer, 'ngram_range', 'unknown')
+        })
         
         # Generate visualizations
-        _plot_confusion_matrix(y_test, y_pred, config.CONFUSION_MATRIX_PATH)
+        _plot_confusion_matrix(y_test, y_pred, confusion_matrix_path)
         _plot_roc_pr_curves(y_test, y_proba, output_prefix)
         
         # Generate additional visualizations
@@ -442,7 +453,7 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
         
         # Save results (including paths to all generated files)
         metrics['visualizations'] = {
-            'confusion_matrix': config.CONFUSION_MATRIX_PATH,
+            'confusion_matrix': confusion_matrix_path,
             'roc_curve': f"{output_prefix}_roc.png",
             'pr_curve': f"{output_prefix}_pr.png",
             'classifier_comparison': f"{output_prefix}_comparison.png",
@@ -452,14 +463,15 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
         }
         
         # Save the metrics
-        _save_results(metrics, config.RESULTS_PATH)
+        _save_results(metrics, results_path)
         
         # Log completion with all output paths
         logger.info("\n" + "="*50)
         logger.info("EVALUATION COMPLETE")
         logger.info("="*50)
-        logger.info(f"All results and visualizations have been saved to: {os.path.dirname(config.RESULTS_PATH)}")
-        logger.info(f"- Confusion Matrix: {config.CONFUSION_MATRIX_PATH}")
+        logger.info(f"All results and visualizations have been saved to: {results_dir}")
+        logger.info(f"- Results: {results_path}")
+        logger.info(f"- Confusion Matrix: {confusion_matrix_path}")
         logger.info(f"- ROC Curve: {output_prefix}_roc.png")
         logger.info(f"- PR Curve: {output_prefix}_pr.png")
         logger.info(f"- Classifier Comparison: {output_prefix}_comparison.png")

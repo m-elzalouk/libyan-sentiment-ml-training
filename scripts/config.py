@@ -60,6 +60,14 @@ class Config:
     RANDOM_STATE = 42
     TEST_SIZE = 0.2
     USE_SMOTE = False  # Set True to enable SMOTE
+    NGRAMS = {
+    'Unigrams': (1, 1),
+    'Bigrams': (2, 2),
+    'Trigrams': (3, 3),
+    'Unigrams & Bigrams': (1, 2),
+    'Unigrams & Trigrams': (1, 3),
+    'Bigrams & Trigrams': (2, 3),
+    }
     VECTORIZER_PARAMS = {
         'max_features': 20000,
         'ngram_range': (1, 3),
@@ -67,6 +75,7 @@ class Config:
         'max_df': 0.9,
         'analyzer': 'word',
     }
+
     GRID_SEARCH_PARAMS = {
         'svm_linear': {
             'C': [0.1, 1, 10],

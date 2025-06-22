@@ -7,6 +7,10 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from scripts.utils import log_step
+from dotenv import load_dotenv
+
+# Load environment variables from .env at the start
+load_dotenv()
 
 def load_and_prepare_data(config):
     """
@@ -47,15 +51,19 @@ def load_and_prepare_data(config):
     @log_step("Prepare features and labels")
     def _prepare_features(df):
         # Map sentiment to numeric labels
-        label_mapping = {"positive": 1, "negative": 0}
-        df["label"] = df["Sentiment"].map(label_mapping)
-        
+        map_sentiment_to_numeric_labels = os.getenv("MAP_SENTIMENT_TO_NUMERIC_LABELS", True)
+        if map_sentiment_to_numeric_labels:
+            logger.info(f"Mapping sentiment to numeric labels")
+        #     label_mapping = {"positive": 1, "negative": 0}
+        #     df["label"] = df["Sentiment"].map(label_mapping)
+        df['label'] = df['Sentiment']
         # Log class distribution
         class_dist = df["label"].value_counts().to_dict()
         logger.info(f"Class distribution: {class_dist}")
-        
-        return df["Processed_Text_base_ai"].astype(str), df["label"].astype(int)
-    
+        return df["Processed_Text_base_ai"].astype(str), (
+            df["label"].map({'positive': 1, 'negative': 0}) if map_sentiment_to_numeric_labels else df["label"].astype(str)
+        )
+
     @log_step("Split data into train/test sets")
     def _split_data(X, y):
         X_train, X_test, y_train, y_test = train_test_split(
