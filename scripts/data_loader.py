@@ -12,15 +12,19 @@ from dotenv import load_dotenv
 # Load environment variables from .env at the start
 load_dotenv()
 
-def load_and_prepare_data(config):
+def load_and_prepare_data(config, return_dataframe=False):
     """
     Load and preprocess the dataset.
     
     Args:
         config: Configuration object containing parameters
+        return_dataframe: If True, returns the full DataFrame instead of split data
         
     Returns:
-        tuple: (X_train, X_test, y_train, y_test) - Split and preprocessed data
+        If return_dataframe is False (default):
+            tuple: (X_train, X_test, y_train, y_test) - Split and preprocessed data
+        If return_dataframe is True:
+            pd.DataFrame: Cleaned and preprocessed DataFrame
     """
     logger = logging.getLogger(__name__)
     
@@ -56,12 +60,11 @@ def load_and_prepare_data(config):
             logger.info(f"Mapping sentiment to numeric labels")
         #     label_mapping = {"positive": 1, "negative": 0}
         #     df["label"] = df["Sentiment"].map(label_mapping)
-        df['label'] = df['Sentiment']
         # Log class distribution
-        class_dist = df["label"].value_counts().to_dict()
+        class_dist = df["Sentiment"].value_counts().to_dict()
         logger.info(f"Class distribution: {class_dist}")
         return df["Processed_Text_base_ai"].astype(str), (
-            df["label"].map({'positive': 1, 'negative': 0}) if map_sentiment_to_numeric_labels else df["label"].astype(str)
+            df["Sentiment"].map({'positive': 1, 'negative': 0}) if map_sentiment_to_numeric_labels else df["Sentiment"].astype(str)
         )
 
     @log_step("Split data into train/test sets")
@@ -90,9 +93,16 @@ def load_and_prepare_data(config):
         # Execute the pipeline
         df = _load_data()
         df = _clean_data(df)
+        
+        if return_dataframe:
+            # Return the cleaned DataFrame directly
+            logger.info(f"Returning DataFrame with shape: {df.shape}")
+            return df
+            
+        # Otherwise, prepare features and split the data
         X, y = _prepare_features(df)
         return _split_data(X, y)
         
     except Exception as e:
-        logger.error(f"Error in data loading/preparation: {str(e)}", exc_info=True)
+        logger.error(f"Data loading and preparation failed with error: {str(e)}")
         raise

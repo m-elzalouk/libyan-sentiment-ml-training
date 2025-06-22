@@ -4,13 +4,16 @@ CLI entry point for Libyan Dialect Sentiment Analysis Training Pipeline.
 import os
 import logging
 import json
+import argparse
 from pathlib import Path
 from datetime import datetime
+import pandas as pd
 from scripts.config import Config
 from scripts.data_loader import load_and_prepare_data
 from scripts.features import extract_features
 from scripts.models import train_and_select_model
 from scripts.evaluate import evaluate_and_save_results
+from scripts.optimization import optimize_ngram_for_classifier_with_hyperparams
 from scripts.utils import log_duration, log_step, setup_logging
 
 def train_with_ngram(X_train, X_test, y_train, y_test, config, ngram_name, ngram_range):
@@ -57,7 +60,19 @@ def train_with_ngram(X_train, X_test, y_train, y_test, config, ngram_name, ngram
     
     return metrics
 
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description='Train sentiment analysis model with hyperparameter optimization.')
+    parser.add_argument('--optimize', action='store_true',
+                      help='Run hyperparameter optimization')
+    parser.add_argument('--fine-tune', action='store_true',
+                      help='Use extended parameter grid for fine-tuning')
+    return parser.parse_args()
+
 def main():
+    # Parse command line arguments
+    args = parse_args()
+    
     # Initialize logging
     logger = setup_logging()
     logger.info("Initializing training pipeline with n-gram analysis")
@@ -74,8 +89,71 @@ def main():
     
     # Load and prepare data (only once)
     with log_duration("Data loading and preparation"):
-        X_train, X_test, y_train, y_test = load_and_prepare_data(config)
-        logger.info(f"Data loaded. Train samples: {len(X_train)}, Test samples: {len(X_test)}")
+        if args.optimize:
+            # For optimization, we need the full DataFrame
+            logger.info("Loading data with return_dataframe=True")
+            data = load_and_prepare_data(config, return_dataframe=True)
+            logger.info(f"Data type: {type(data)}")
+            if isinstance(data, tuple):
+                logger.error(f"Expected DataFrame but got tuple with {len(data)} elements")
+                logger.error(f"First element type: {type(data[0]) if len(data) > 0 else 'N/A'}")
+            else:
+                logger.info(f"Data loaded. Samples: {len(data)}")
+                logger.info(f"Columns: {data.columns.tolist() if hasattr(data, 'columns') else 'N/A'}")
+            
+            # Split data into train and test sets
+            from sklearn.model_selection import train_test_split
+            X_train, X_test, y_train, y_test = train_test_split(
+                data['Processed_Text_base_ai'], 
+                data['Sentiment'],
+                test_size=config.TEST_SIZE,
+                random_state=config.RANDOM_STATE,
+                stratify=data['Sentiment']
+            )
+            logger.info(f"Train samples: {len(X_train)}, Test samples: {len(X_test)}")
+        else:
+            # For regular training, use the standard split
+            X_train, X_test, y_train, y_test = load_and_prepare_data(config, return_dataframe=False)
+            logger.info(f"Data loaded. Train samples: {len(X_train)}, Test samples: {len(X_test)}")
+            
+            # Ensure we have the text data in the right format
+            if isinstance(X_train, pd.Series):
+                X_train = X_train.values
+            if isinstance(X_test, pd.Series):
+                X_test = X_test.values
+            if isinstance(y_train, pd.Series):
+                y_train = y_train.values
+            if isinstance(y_test, pd.Series):
+                y_test = y_test.values
+    
+    if args.optimize:
+        # Run hyperparameter optimization
+        with log_duration("Hyperparameter optimization"):
+            logger.info("Starting hyperparameter optimization...")
+            results_df = optimize_ngram_for_classifier_with_hyperparams(
+                X_train=X_train,
+                y_train=y_train,
+                X_test=X_test,
+                y_test=y_test,
+                results_dir=config.RESULTS_DIR,
+                fine_tune=args.fine_tune
+            )
+            
+            # Save the best model
+            best_idx = results_df['f1'].idxmax()
+            best_result = results_df.loc[best_idx]
+            logger.info(f"\n{'='*50}")
+            logger.info("Best Model Configuration:")
+            logger.info(f"Classifier: {best_result['classifier']}")
+            logger.info(f"N-gram: {best_result['ngram']} ({best_result['ngram_range']})")
+            logger.info(f"Accuracy: {best_result['accuracy']:.4f}")
+            logger.info(f"F1 Score: {best_result['f1']:.4f}")
+            logger.info(f"Parameters: {best_result['best_params']}")
+            logger.info(f"{'='*50}")
+            
+            # Exit after optimization if not in fine-tuning mode
+            if not args.fine_tune:
+                return
     
     # Track results for all n-gram configurations
     all_results = {}

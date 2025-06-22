@@ -3,6 +3,9 @@ Configuration and hyperparameters for the sentiment analysis pipeline.
 """
 import os
 from dotenv import load_dotenv
+from sklearn.svm import SVC
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
 
 # Load environment variables from .env at the start
 load_dotenv()
@@ -60,14 +63,16 @@ class Config:
     RANDOM_STATE = 42
     TEST_SIZE = 0.2
     USE_SMOTE = False  # Set True to enable SMOTE
+    # N-gram configurations for optimization
     NGRAMS = {
-    'Unigrams': (1, 1),
-    'Bigrams': (2, 2),
-    'Trigrams': (3, 3),
-    'Unigrams & Bigrams': (1, 2),
-    'Unigrams & Trigrams': (1, 3),
-    'Bigrams & Trigrams': (2, 3),
+        'Unigrams': (1, 1),
+        'Bigrams': (2, 2),
+        'Trigrams': (3, 3),
+        'Unigrams & Bigrams': (1, 2),
+        'Unigrams & Trigrams': (1, 3),
+        'Bigrams & Trigrams': (2, 3),
     }
+    # Vectorizer parameters
     VECTORIZER_PARAMS = {
         'max_features': 20000,
         'ngram_range': (1, 3),
@@ -75,25 +80,41 @@ class Config:
         'max_df': 0.9,
         'analyzer': 'word',
     }
-
-    GRID_SEARCH_PARAMS = {
-        'svm_linear': {
+    
+    # Classifier configurations for optimization
+    CLASSIFIERS = {
+        'SVM': (SVC(probability=True, random_state=42), {
+            'kernel': ['linear', 'rbf'],
             'C': [0.1, 1, 10],
-            'kernel': ['linear'],
-            'class_weight': ['balanced']
-        },
-        'svm_rbf': {
-            'C': [0.1, 1, 10],
-            'kernel': ['rbf'],
-            'class_weight': ['balanced']
-        },
-        'logreg': {
-            'solver': ['saga', 'liblinear'],
+            'class_weight': [None, 'balanced']
+        }),
+        'Naive Bayes': (MultinomialNB(), {
+            'alpha': [0.1, 0.5, 1.0]
+        }),
+        'Logistic Regression': (LogisticRegression(random_state=42, max_iter=1000), {
             'penalty': ['l2'],
-            'C': [0.1, 1, 10]
+            'C': [0.1, 1, 10],
+            'solver': ['liblinear', 'saga']
+        }),
+    }
+
+    # Fine-tuning parameter grids
+    FINE_TUNE_GRIDS = {
+        'SVM': {
+            'C': [0.001, 0.01, 0.1, 1, 10, 100],
+            'kernel': ['linear', 'rbf'],
+            'gamma': ['scale', 'auto', 0.001, 0.01, 0.1],
+            'class_weight': [None, 'balanced'],
+            'max_iter': [5000, 10000]
         },
-        'nb': {
-            'alpha': [0.1, 1.0, 5.0]
+        'Naive Bayes': {
+            'alpha': [0.01, 0.1, 0.5, 1.0, 5.0, 10.0]
+        },
+        'Logistic Regression': {
+            'C': [0.01, 0.1, 1, 10, 100],
+            'penalty': ['l2'],
+            'solver': ['liblinear', 'saga'],
+            'class_weight': [None, 'balanced']
         }
     }
     SCORING = 'f1_weighted'
