@@ -56,11 +56,11 @@ services:
       - ./logs:/app/logs
     env_file:
       - .env
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 8G
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '4'
+    #       memory: 8G
     logging:
       driver: "json-file"
       options:
