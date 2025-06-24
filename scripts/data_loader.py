@@ -32,12 +32,12 @@ def load_and_prepare_data(config, return_dataframe=False):
     
     @log_step("Load dataset")
     def _load_data():
-        if not os.path.exists(config.Test_DATA_PATH):
-            logger.error(f"Data file not found at {config.Test_DATA_PATH}")
-            raise FileNotFoundError(f"Data file not found at {config.Test_DATA_PATH}")
+        if not os.path.exists(config.DATA_PATH):
+            logger.error(f"Data file not found at {config.DATA_PATH}")
+            raise FileNotFoundError(f"Data file not found at {config.DATA_PATH}")
         
-        logger.info(f"Loading data from {config.Test_DATA_PATH}")
-        return pd.read_csv(config.Test_DATA_PATH)
+        logger.info(f"Loading data from {config.DATA_PATH}")
+        return pd.read_csv(config.DATA_PATH)
     
     @log_step("Clean and preprocess data")
     def _clean_data(df):
