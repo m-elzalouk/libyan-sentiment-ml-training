@@ -4,7 +4,7 @@ Configuration and hyperparameters for the sentiment analysis pipeline.
 import os
 from dotenv import load_dotenv
 from sklearn.svm import SVC
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.linear_model import LogisticRegression
 
 # Load environment variables from .env at the start
@@ -14,6 +14,7 @@ class Config:
     # Directory paths
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     DATA_PATH = os.getenv("DATA_PATH", "data/dataset_cleaned-positive-negative-v2.csv")
+    Test_DATA_PATH = os.getenv("Test_DATA_PATH", "data/test.csv")
     RESULTS_DIR = os.getenv("RESULTS_DIR", "results")
     MODELS_DIR = os.getenv("MODELS_DIR", "models")
     LOGS_DIR = os.getenv("LOGS_DIR", "logs")
@@ -74,47 +75,127 @@ class Config:
     }
     # Vectorizer parameters
     VECTORIZER_PARAMS = {
-        'max_features': 20000,
+        'max_features': 80000,
         'ngram_range': (1, 3),
-        'min_df': 3,
-        'max_df': 0.9,
+        'min_df': 5,
+        'max_df': 0.99,
         'analyzer': 'word',
+    }
+    
+    # Hyperparameter grids for grid search
+    GRID_SEARCH_PARAMS = {
+        'svm_linear': {
+            'C': [0.01, 0.1, 1, 10],  # Smaller range of C values
+            'kernel': ['linear','rbf'],
+            'gamma': ['scale','auto'],
+            'class_weight': ['balanced'],  # Only use balanced to handle class imbalance
+            'probability': [True],
+            'random_state': [42,43,44,45],
+            'max_iter': [5000,10000,15000],
+            'tol': [1e-2],  # Higher tolerance for faster convergence
+            'cache_size': [1500]  # Increase cache size
+        },
+        'svm_rbf': {
+            'C': [0.01, 0.1, 1],  # Smaller range of C values
+            'kernel': ['rbf'],
+            'gamma': ['scale'],  # Start with just 'scale'
+            'class_weight': ['balanced'],  # Only use balanced
+            'probability': [True],
+            'random_state': [42,43,44,45],
+            'max_iter': [10000],
+            'tol': [1e-2],  # Higher tolerance for faster convergence
+            'cache_size': [1000]  # Increase cache size
+        },
+        # Parameters for Naive Bayes (Gaussian for SVD, Multinomial otherwise)
+        'nb': {
+            'var_smoothing': [1e-9, 1e-8, 1e-7]  # For GaussianNB when using SVD
+        },
+        'nb_multinomial': {
+            'alpha': [0.1, 0.5, 1.0],  # For MultinomialNB when not using SVD
+            'fit_prior': [True, False]
+        },
+        'logreg': [
+            # Configuration for l1/l2 penalties
+            {
+                'penalty': ['l1', 'l2'],
+                'C': [0.01, 0.1, 1, 10],
+                'solver': ['liblinear', 'saga'],
+                'class_weight': [None, 'balanced'],
+                'random_state': [42,43,44,45],
+                'max_iter': [10000]
+            },
+            # Configuration for elasticnet penalty (includes l1_ratio)
+            {
+                'penalty': ['elasticnet'],
+                'C': [0.01, 0.1, 1, 10],
+                'solver': ['saga'],  # Only saga supports elasticnet
+                'l1_ratio': [0.1, 0.5, 0.9],
+                'class_weight': [None, 'balanced'],
+                'random_state': [42,43,44,45],
+                'max_iter': [10000]
+            },
+            # Configuration for no penalty
+            {
+                'penalty': [None],  # Changed from 'none' to None
+                'solver': ['lbfgs', 'newton-cg', 'sag', 'saga'],
+                'class_weight': [None, 'balanced'],
+                'random_state': [42,43,44,45],
+                'max_iter': [10000]
+            }
+        ]
     }
     
     # Classifier configurations for optimization
     CLASSIFIERS = {
-        'SVM': (SVC(probability=True, random_state=42), {
+        'SVM': (SVC(probability=True, random_state=42, max_iter=10000), {
             'kernel': ['linear', 'rbf'],
-            'C': [0.1, 1, 10],
+            'C': [0.01, 0.1, 1, 10],
+            'gamma': ['scale', 'auto', 0.01, 0.1],
             'class_weight': [None, 'balanced']
         }),
         'Naive Bayes': (MultinomialNB(), {
             'alpha': [0.1, 0.5, 1.0]
         }),
-        'Logistic Regression': (LogisticRegression(random_state=42, max_iter=1000), {
-            'penalty': ['l2'],
-            'C': [0.1, 1, 10],
-            'solver': ['liblinear', 'saga']
+        'GaussianNB': (GaussianNB(), {
+            'var_smoothing': [1e-9, 1e-8, 1e-7]
+        }),
+        'Logistic Regression': (LogisticRegression(random_state=42, max_iter=10000), {
+            'penalty': ['l1', 'l2', 'elasticnet', None],
+            'C': [0.01, 0.1, 1, 10],
+            'solver': ['liblinear', 'saga'],
+            'l1_ratio': [0.1, 0.5, 0.9],  # For elasticnet
+            'class_weight': [None, 'balanced']
         }),
     }
 
     # Fine-tuning parameter grids
     FINE_TUNE_GRIDS = {
         'SVM': {
-            'C': [0.001, 0.01, 0.1, 1, 10, 100],
-            'kernel': ['linear', 'rbf'],
-            'gamma': ['scale', 'auto', 0.001, 0.01, 0.1],
+            'C': [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000],
+            'kernel': ['linear', 'rbf', 'poly', 'sigmoid'],
+            'gamma': ['scale', 'auto', 0.0001, 0.001, 0.01, 0.1, 1],
             'class_weight': [None, 'balanced'],
-            'max_iter': [5000, 10000]
+            'degree': [2, 3, 4],  # For poly kernel
+            'coef0': [0.0, 0.1, 1.0],  # For poly/sigmoid
+            'shrinking': [True, False],
+            'max_iter': [10000, 20000],
+            'decision_function_shape': ['ovr', 'ovo']
         },
         'Naive Bayes': {
-            'alpha': [0.01, 0.1, 0.5, 1.0, 5.0, 10.0]
+            'alpha': [0.001, 0.01, 0.1, 0.5, 1.0, 5.0, 10.0],
+            'fit_prior': [True, False],
+            'class_prior': [None, [0.3, 0.7], [0.4, 0.6]]
         },
         'Logistic Regression': {
-            'C': [0.01, 0.1, 1, 10, 100],
-            'penalty': ['l2'],
-            'solver': ['liblinear', 'saga'],
-            'class_weight': [None, 'balanced']
+            'C': [0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000],
+            'penalty': ['l1', 'l2', 'elasticnet', None],
+            'solver': ['liblinear', 'saga', 'sag', 'lbfgs', 'newton-cg'],
+            'class_weight': [None, 'balanced'],
+            'max_iter': [1000, 5000, 10000],
+            'l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9],  # For elasticnet
+            'fit_intercept': [True, False],
+            'warm_start': [True, False],
+            'multi_class': ['auto', 'ovr', 'multinomial']
         }
     }
     SCORING = 'f1_weighted'

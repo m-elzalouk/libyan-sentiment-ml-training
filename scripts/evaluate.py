@@ -29,35 +29,44 @@ plt.rcParams['axes.titlesize'] = 14
 plt.rcParams['xtick.labelsize'] = 10
 plt.rcParams['ytick.labelsize'] = 10
 
-def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, best_params, results_dir=None):
+def evaluate_and_save_results(model, X_test_combined, y_test, results_dir, config, best_params=None, ngram_config=None):
     """
     Evaluate the model and save detailed results and visualizations.
     
     Args:
         model: Trained model
-        X_test_vec: Vectorized test features
+        X_test_combined: Combined test features (TF-IDF + numeric features)
         y_test: Test labels
-        vectorizer: Fitted vectorizer
+        results_dir: Directory to save results
         config: Configuration object
-        best_params: Best parameters from grid search
-        results_dir: Optional directory to save results. If None, uses config.RESULTS_DIR
+        best_params: Best parameters from grid search (optional)
+        ngram_config: Dictionary containing n-gram configuration (name, range, vocab_size)
     """
-    # Use provided results_dir or fall back to config.RESULTS_DIR
-    if results_dir is None:
-        results_dir = config.RESULTS_DIR
     os.makedirs(results_dir, exist_ok=True)
     logger = logging.getLogger(__name__)
+    
+    # Ensure y_test is numpy array
+    y_test = np.array(y_test) if not isinstance(y_test, np.ndarray) else y_test
     
     @log_step("Generate predictions")
     def _generate_predictions():
         logger.info("Generating predictions on test set")
-        y_pred = model.predict(X_test_vec)
+        logger.info(f"Input shape for prediction: {X_test_combined.shape}")
+        
+        # Generate predictions
+        y_pred = model.predict(X_test_combined)
         
         # Get prediction probabilities if available
         y_proba = None
         if hasattr(model, "predict_proba"):
-            y_proba = model.predict_proba(X_test_vec)[:, 1]
-            logger.debug("Prediction probabilities generated")
+            try:
+                y_proba = model.predict_proba(X_test_combined)[:, 1]
+                logger.debug("Prediction probabilities generated")
+            except IndexError:
+                # Handle case where predict_proba returns only one column
+                y_proba = model.predict_proba(X_test_combined)
+                if y_proba.shape[1] == 1:
+                    y_proba = y_proba.ravel()
         else:
             logger.info("Model does not support probability predictions")
             
@@ -73,7 +82,11 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
             'precision': precision_score(y_true, y_pred, average='weighted'),
             'recall': recall_score(y_true, y_pred, average='weighted'),
             'f1': f1_score(y_true, y_pred, average='weighted'),
-            'best_params': best_params
+            'model_params': best_params or {},
+            'ngram_name': ngram_config.get('name', 'unknown') if ngram_config else 'unknown',
+            'ngram_range': ngram_config.get('range', 'unknown') if ngram_config else 'unknown',
+            'vocab_size': ngram_config.get('vocab_size', 0) if ngram_config else 0,
+            'best_params': best_params or {}
         }
         
         # Add ROC-AUC if probabilities are available
@@ -439,7 +452,10 @@ def evaluate_and_save_results(model, X_test_vec, y_test, vectorizer, config, bes
             'model_name': model.__class__.__name__,
             'model_params': best_params,
             'timestamp': datetime.now().isoformat(),
-            'ngram_range': getattr(vectorizer, 'ngram_range', 'unknown')
+            'ngram_range': getattr(model, 'feature_importances_', None) is not None and \
+                          hasattr(model, 'feature_names_in_') and \
+                          hasattr(model, 'get_params') and \
+                          model.get_params().get('ngram_range', None) or 'unknown'
         })
         
         # Generate visualizations

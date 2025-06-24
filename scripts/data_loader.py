@@ -5,9 +5,11 @@ import os
 import logging
 import pandas as pd
 import numpy as np
+import re
 from sklearn.model_selection import train_test_split
 from scripts.utils import log_step
 from dotenv import load_dotenv
+from typing import Tuple, Union, List
 
 # Load environment variables from .env at the start
 load_dotenv()
@@ -30,12 +32,12 @@ def load_and_prepare_data(config, return_dataframe=False):
     
     @log_step("Load dataset")
     def _load_data():
-        if not os.path.exists(config.DATA_PATH):
-            logger.error(f"Data file not found at {config.DATA_PATH}")
-            raise FileNotFoundError(f"Data file not found at {config.DATA_PATH}")
+        if not os.path.exists(config.Test_DATA_PATH):
+            logger.error(f"Data file not found at {config.Test_DATA_PATH}")
+            raise FileNotFoundError(f"Data file not found at {config.Test_DATA_PATH}")
         
-        logger.info(f"Loading data from {config.DATA_PATH}")
-        return pd.read_csv(config.DATA_PATH)
+        logger.info(f"Loading data from {config.Test_DATA_PATH}")
+        return pd.read_csv(config.Test_DATA_PATH)
     
     @log_step("Clean and preprocess data")
     def _clean_data(df):
@@ -52,20 +54,51 @@ def load_and_prepare_data(config, return_dataframe=False):
         
         return df
     
+    def _extract_text_features(text):
+        """Extract basic text features."""
+        text = str(text)  # Ensure text is string
+        text_length = len(text)
+        word_count = len(text.split())
+        
+        return {
+            'text_length': text_length,
+            'word_count': word_count
+        }
+
     @log_step("Prepare features and labels")
-    def _prepare_features(df):
+    def _prepare_features(df: pd.DataFrame) -> Tuple[Union[pd.DataFrame, pd.Series], np.ndarray]:
+        """
+        Prepare features including text and engineered features.
+        
+        Args:
+            df: Input DataFrame with text data
+            
+        Returns:
+            Tuple containing features (X) and labels (y)
+        """
         # Map sentiment to numeric labels
-        map_sentiment_to_numeric_labels = os.getenv("MAP_SENTIMENT_TO_NUMERIC_LABELS", True)
-        if map_sentiment_to_numeric_labels:
-            logger.info(f"Mapping sentiment to numeric labels")
-        #     label_mapping = {"positive": 1, "negative": 0}
-        #     df["label"] = df["Sentiment"].map(label_mapping)
+        map_sentiment_to_numeric_labels = os.getenv("MAP_SENTIMENT_TO_NUMERIC_LABELS", "True").lower() == "true"
+        
         # Log class distribution
         class_dist = df["Sentiment"].value_counts().to_dict()
         logger.info(f"Class distribution: {class_dist}")
-        return df["Processed_Text_base_ai"].astype(str), (
-            df["Sentiment"].map({'positive': 1, 'negative': 0}) if map_sentiment_to_numeric_labels else df["Sentiment"].astype(str)
-        )
+        
+        # Extract text features
+        logger.info("Extracting text features...")
+        text_features = df["Processed_Text_base_ai"].astype(str).apply(_extract_text_features)
+        
+        # Convert features to DataFrame
+        features_df = pd.DataFrame(list(text_features))
+        
+        # Add original text
+        features_df['text'] = df["Processed_Text_base_ai"].astype(str)
+        
+        # Convert labels if needed
+        y = (df["Sentiment"].map({'positive': 1, 'negative': 0}) 
+             if map_sentiment_to_numeric_labels 
+             else df["Sentiment"].astype(str))
+        
+        return features_df, y.values
 
     @log_step("Split data into train/test sets")
     def _split_data(X, y):

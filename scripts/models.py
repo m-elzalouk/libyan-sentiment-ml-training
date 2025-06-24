@@ -6,7 +6,7 @@ import os
 import joblib
 import numpy as np
 from sklearn.svm import SVC
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import get_scorer
@@ -28,18 +28,35 @@ def train_and_select_model(X_train_vec, y_train, config):
     
     @log_step("Initialize models")
     def _initialize_models():
+        # Check if we're using SVD by looking at the input data
+        # If the data has negative values, we should use GaussianNB instead of MultinomialNB
+        has_negative_values = (X_train_vec.data < 0).any() if hasattr(X_train_vec, 'data') else (X_train_vec < 0).any()
+        
         models = {
             'SVM (Linear)': (SVC, config.GRID_SEARCH_PARAMS['svm_linear']),
             'SVM (RBF)': (SVC, config.GRID_SEARCH_PARAMS['svm_rbf']),
-            'Naive Bayes': (MultinomialNB, config.GRID_SEARCH_PARAMS['nb']),
             'Logistic Regression': (LogisticRegression, config.GRID_SEARCH_PARAMS['logreg'])
         }
+        
+        # Add the appropriate Naive Bayes model based on data characteristics
+        if has_negative_values:
+            logger.info("Detected negative values in data, using GaussianNB")
+            models['Naive Bayes (Gaussian)'] = (GaussianNB, config.GRID_SEARCH_PARAMS['nb'])
+        else:
+            logger.info("No negative values detected, using MultinomialNB")
+            models['Naive Bayes (Multinomial)'] = (MultinomialNB, config.GRID_SEARCH_PARAMS['nb_multinomial'])
         logger.info(f"Initialized {len(models)} models for training")
         return models
     
     @log_step("Train model")
     def _train_model(name, clf_class, params):
         logger.info(f"Training {name} with parameters: {params}")
+        
+        # Check if we need to handle sparse matrices (for GaussianNB)
+        use_dense = 'Gaussian' in name and hasattr(X_train_vec, 'toarray')
+        
+        # Convert to dense if needed
+        X_train_processed = X_train_vec.toarray() if use_dense else X_train_vec
         
         # Get the scoring function for logging
         scorer = get_scorer(config.SCORING)
@@ -56,6 +73,19 @@ def train_and_select_model(X_train_vec, y_train, config):
             'roc_auc_ovr': 'roc_auc_ovr' if hasattr(clf_class(), 'predict_proba') else None
         }
         
+        # Create a custom scorer that handles sparse matrices for GaussianNB
+        def make_scorer_with_dense(scoring):
+            def scorer(estimator, X, y_true):
+                if use_dense and hasattr(X, 'toarray'):
+                    X = X.toarray()
+                return scoring(estimator, X, y_true)
+            return scorer
+        
+        # Update scoring metrics to use the dense-aware scorer
+        if use_multi_metric:
+            scoring_metrics = {k: make_scorer_with_dense(get_scorer(k)) 
+                            for k, v in scoring_metrics.items() if v is not None}
+        
         # Remove None values
         scoring_metrics = {k: v for k, v in scoring_metrics.items() if v is not None}
         
@@ -71,7 +101,8 @@ def train_and_select_model(X_train_vec, y_train, config):
                 n_jobs=-1, 
                 cv=5, 
                 verbose=1,
-                return_train_score=True
+                return_train_score=True,
+                error_score='raise'  # Raise error to see what's wrong
             )
         else:
             # For single metric scoring, use the standard approach
@@ -83,10 +114,13 @@ def train_and_select_model(X_train_vec, y_train, config):
                 n_jobs=-1,
                 cv=5,
                 verbose=1,
-                return_train_score=True
+                return_train_score=True,
+                error_score='raise'  # Raise error to see what's wrong
             )
         
-        gs.fit(X_train_vec, y_train)
+        # Fit the model with the processed data
+        logger.info(f"Fitting model with {'dense' if use_dense else 'sparse'} data")
+        gs.fit(X_train_processed, y_train)
         
         # Log detailed training results with colors
         logger.info("\n" + "="*70)

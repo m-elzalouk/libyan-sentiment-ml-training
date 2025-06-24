@@ -1,79 +1,58 @@
 version: '3.8'
 
+# Common configuration for all services
+x-common-config: &common-config
+  volumes:
+    - ./data:/app/data
+    - ./models:/app/models
+    - ./results:/app/results
+    - ./logs:/app/logs
+  env_file:
+    - .env
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
-  training:
-    build: .
-    container_name: libyan-sentiment-training-ml
-    volumes:
-      - ./data:/app/data
-      - ./models:/app/models
-      - ./results:/app/results
-      - ./logs:/app/logs
-    env_file:
-      - .env
-    # for restart unless stopped 
-    # restart: unless-stopped
-    # Using all available system resources
-    # Remove or comment out the deploy.resources section to use all available CPU and memory
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '2'
-    #       memory: 4G
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'python -m scripts.train' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # Standard training service
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: libyan-sentiment-train
+    <<: *common-config
     command: >
       sh -c "python -m scripts.train"
-  # test:
-  #   build: .
-  #   container_name: libyan-sentiment-test-ml
-  #   volumes:
-  #     - ./test_results:/app/test_results
-  #     - ./data:/app/data
-  #   env_file:
-  #     - .env
-  #   command: python -m scripts.test_pipeline
 
-  # Optimization service with extended resources
-  optimization:
+  # Hyperparameter optimization service
+  optimize:
     build:
       context: .
       dockerfile: Dockerfile.optimize
-    container_name: libyan-sentiment-optimization
-    volumes:
-      - ./data:/app/data
-      - ./models:/app/models
-      - ./results:/app/results
-      - ./logs:/app/logs
-    env_file:
-      - .env
+    container_name: libyan-sentiment-optimize
+    <<: *common-config
+    # Uncomment and adjust resources as needed
     # deploy:
     #   resources:
     #     limits:
     #       cpus: '4'
     #       memory: 8G
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
     command: >
       sh -c "python -m scripts.train --optimize"
 
-    # Run with fine-tuning (edit docker-compose.yml):
-    # command: >
-    #   sh -c "python -m scripts.train --optimize --fine-tune"
+  # SVD component tuning service
+  tune-svd:
+    build:
+      context: .
+      dockerfile: Dockerfile.optimize  # Uses same image as optimize
+    container_name: libyan-sentiment-tune-svd
+    <<: *common-config
+    command: >
+      sh -c "python -m scripts.train --tune-svd --min-components 10 --max-components 40 --step 5"
 
-  # Uncomment to add a Jupyter notebook service for exploration
+  # Jupyter notebook service for exploration (uncomment to use)
   # notebook:
   #   build: .
   #   container_name: libyan-sentiment-notebook

@@ -62,9 +62,9 @@ class Config:
     USE_SMOTE = False  # Set True to enable SMOTE
     VECTORIZER_PARAMS = {
         'max_features': 1000,
-        'ngram_range': (1, 3),
-        'min_df': 3,
-        'max_df': 0.9,
+        'ngram_range': (1, 2),
+        'min_df': 1,
+        'max_df': 1.0,
         'analyzer': 'word',
     }
     GRID_SEARCH_PARAMS = {
